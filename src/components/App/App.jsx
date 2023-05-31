@@ -1,39 +1,29 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import ContactForm from '../ContactForm';
 import ContactList from '../ContactList';
 import { nanoid } from 'nanoid';
 import Filter from '../Filter';
 import { Section, Title, TitleMain } from './App.styled';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const LS_KEY = 'contacts';
 
-class App extends Component {
-  state = {
-    contacts: [],
-    filter: '',
-  };
+const App = () => {
+  const [contacts, setContacts] = useState(() => {
+    return JSON.parse(window.localStorage.getItem(LS_KEY)) ?? [];
+  });
+  const [filter, setFilter] = useState('');
 
-  componentDidMount() {
-    const savedContacts = JSON.parse(localStorage.getItem(LS_KEY));
+  useEffect(() => {
+    window.localStorage.setItem(LS_KEY, JSON.stringify(contacts));
+  }, [contacts]);
 
-    if (savedContacts) {
-      this.setState({ contacts: savedContacts });
-    }
-  }
-
-  componentDidUpdate(prevProps, prevState) {
-    const prevContacts = prevState.conatcts;
-    const currentContacts = this.state.contacts;
-
-    if (prevContacts !== currentContacts) {
-      localStorage.setItem(LS_KEY, JSON.stringify(currentContacts));
-    }
-  }
-
-  createContact = data => {
+  const createContact = data => {
     const { name, number } = data;
-    const { contacts } = this.state;
     const id = nanoid();
+
+    const newContact = { id, name, number };
 
     const duplicate = contacts.some(
       contact =>
@@ -42,59 +32,51 @@ class App extends Component {
     );
 
     if (duplicate) {
-      return alert(`${name} is already in contacts`);
+      return toast.error(`${name} is already in contacts`);
     }
 
-    const updatedContacts = [...contacts];
-    updatedContacts.unshift({ id, name, number });
-
-    this.setState({ contacts: updatedContacts });
+    setContacts(contacts => [...contacts, newContact]);
   };
 
-  changeFilter = e => {
-    const { name, value } = e.target;
-    this.setState({ [name]: value });
+  const changeFilter = e => {
+    const { value } = e.target;
+
+    setFilter(value);
   };
 
-  getVisibleContacts = () => {
-    const { contacts, filter } = this.state;
-
+  const getVisibleContacts = () => {
     return contacts.filter(contact =>
       contact.name.toLowerCase().includes(filter.toLowerCase())
     );
   };
 
-  deleteContact = contactId => {
-    this.setState(prevState => ({
-      contacts: prevState.contacts.filter(contact => contact.id !== contactId),
-    }));
+  const deleteContact = contactId => {
+    setContacts(contacts.filter(contact => contact.id !== contactId));
   };
 
-  render() {
-    const { contacts, filter } = this.state;
-    const filtredContacts = this.getVisibleContacts();
+  const filtredContacts = getVisibleContacts();
 
-    return (
-      <>
-        <Section title="Phonebook">
-          <TitleMain>Phonebook</TitleMain>
-          <ContactForm createContact={this.createContact} />
-        </Section>
-        <Section title="Contacts">
-          <Title>Contacts</Title>
-          {contacts.length > 0 && (
-            <Filter value={filter} onChange={this.changeFilter} />
-          )}
-          {contacts.length > 0 && (
-            <ContactList
-              contacts={filtredContacts}
-              deleteContact={this.deleteContact}
-            />
-          )}
-        </Section>
-      </>
-    );
-  }
-}
+  return (
+    <>
+      <Section title="Phonebook">
+        <TitleMain>Phonebook</TitleMain>
+        <ContactForm createContact={createContact} />
+      </Section>
+      <Section title="Contacts">
+        <Title>Contacts</Title>
+        {contacts.length > 0 && (
+          <Filter value={filter} onChange={changeFilter} />
+        )}
+        {contacts.length > 0 && (
+          <ContactList
+            contacts={filtredContacts}
+            deleteContact={deleteContact}
+          />
+        )}
+      </Section>
+      <ToastContainer position="top-right" autoClose={3000} />
+    </>
+  );
+};
 
 export default App;
